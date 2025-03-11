@@ -20,8 +20,8 @@ A command-line interface demonstrating the use of LangChain Swift with OpenAI's 
 
 1. Clone the repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/langchaincli.git
-cd langchaincli
+git clone https://github.com/deverman/langchainswiftclidemo.git
+cd langchainswiftclidemo
 ```
 
 2. Set your OpenAI API key as an environment variable:

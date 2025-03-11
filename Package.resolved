@@ -82,6 +82,15 @@
       }
     },
     {
+      "identity" : "langgraph-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/bsorrentino/LangGraph-Swift.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "04a8492bb219614e9d14b76b618018bda739303c"
+      }
+    },
+    {
       "identity" : "openai-kit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/buhe/openai-kit",

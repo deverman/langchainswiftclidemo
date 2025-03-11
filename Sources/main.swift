@@ -8,19 +8,23 @@ import AsyncHTTPClient
 import NIOCore
 import NIOPosix
 
+// MARK: - Tool Protocol
+/// Define a simple protocol for our tools to implement
 protocol Tool {
     func name() -> String
     func description() -> String
     func call(_ input: String) async throws -> String
 }
 
+// MARK: - Time Check Tool
+/// A simple tool that returns the current time
 final class TimeCheckTool: Tool {
     func name() -> String {
         return "time_check"
     }
     
     func description() -> String {
-        return "Get the current time"
+        return "Get the current time in HH:mm:ss format"
     }
     
     func call(_ input: String) async throws -> String {
@@ -30,33 +34,36 @@ final class TimeCheckTool: Tool {
     }
 }
 
+// MARK: - Calculator Tool
+/// A basic calculator tool that handles multiplication
 final class CalculatorTool: Tool {
     func name() -> String {
         return "calculator"
     }
     
     func description() -> String {
-        return "Perform basic arithmetic calculations"
+        return "Multiply two numbers (format: number * number)"
     }
     
     func call(_ input: String) async throws -> String {
-        // Extract numbers and operator from the input
+        // Simple regex to extract multiplication expression
         let pattern = #"(\d+)\s*\*\s*(\d+)"#
         guard let regex = try? NSRegularExpression(pattern: pattern),
               let match = regex.firstMatch(in: input, range: NSRange(input.startIndex..., in: input)),
               let num1Range = Range(match.range(at: 1), in: input),
               let num2Range = Range(match.range(at: 2), in: input),
-              let num1 = Double(input[num1Range]),
-              let num2 = Double(input[num2Range]) else {
-            return "Could not find a valid multiplication expression in: \(input)"
+              let num1 = Int(input[num1Range]),
+              let num2 = Int(input[num2Range]) else {
+            return "Please provide two numbers to multiply (e.g., '5 * 3')"
         }
         
-        return "The result of \(Int(num1)) * \(Int(num2)) = \(Int(num1 * num2))"
+        return "\(num1) * \(num2) = \(num1 * num2)"
     }
 }
 
-// Custom agent that works with our Tool protocol
-final class CustomAgent {
+// MARK: - Assistant Implementation
+/// A simple AI assistant that can use tools to answer questions
+final class Assistant {
     private let llm: ChatOpenAI
     private let tools: [Tool]
     
@@ -65,112 +72,75 @@ final class CustomAgent {
         self.tools = tools
     }
     
-    func run(args: String) async throws -> String {
-        let prompt = """
-        You are an AI assistant that can use tools to help answer questions.
+    func process(query: String) async throws -> String {
+        var responses: [String] = []
         
-        Available tools:
-        \(tools.map { "- \($0.name()): \($0.description())" }.joined(separator: "\n"))
-        
-        User's request: \(args)
-        
-        Think about what tools you need to use to answer this request.
-        Then use the tools in sequence to get the information needed.
-        Finally, provide a natural response that combines all the information.
-        
-        Let's solve this step by step:
-        1. First, identify which tools we need
-        2. Then, use each tool in sequence
-        3. Finally, combine the results into a natural response
-        """
-        
-        // We don't need to check the response since we're not using it
-        _ = await llm.generate(text: prompt)
-        
-        // Always try to use both tools for this simple demo
-        var timeResult = ""
-        var calculationResult = ""
-        
+        // Try each tool with the query
         for tool in tools {
-            let result = try await tool.call(args)
-            switch tool.name() {
-            case "time_check":
-                timeResult = result
-            case "calculator":
-                calculationResult = result
-            default:
-                break
+            if let result = try? await tool.call(query) {
+                responses.append(result)
             }
         }
         
-        return """
-        Let me help you with that!
-        
-        \(timeResult)
-        \(calculationResult)
-        """
+        // Combine all responses
+        return responses.joined(separator: "\n")
     }
 }
 
+// MARK: - Command Line Interface
 @main
 struct AIAssistant: AsyncParsableCommand {
     static var configuration = CommandConfiguration(
         commandName: "langchainswiftclidemo",
-        abstract: "An AI assistant that can perform various tasks",
-        discussion: "Uses LangChain Swift to create an agentic AI that can handle multiple tools."
+        abstract: "A simple AI assistant that can tell time and do calculations",
+        discussion: "Example: Run with --query 'What time is it and calculate 5 * 3'"
     )
     
-    @Option(name: .long, help: "The question or task for the AI assistant")
+    @Option(name: .long, help: "Your question (e.g., 'What time is it?' or 'Calculate 5 * 3')")
     var query: String
     
-    @Flag(name: .long, help: "Enable verbose output")
+    @Flag(name: .long, help: "Show available tools and detailed output")
     var verbose: Bool = false
     
     mutating func run() async throws {
-        // Check for OpenAI API key
+        // Verify API key is set
         guard let openAIKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] else {
-            print("❌ Error: OPENAI_API_KEY environment variable is not set")
+            print("❌ Please set your OPENAI_API_KEY environment variable")
             throw ExitCode.failure
         }
         
-        // Initialize LangChain configuration
-        LC.initSet([
-            "OPENAI_API_KEY": openAIKey
-        ])
+        // Initialize LangChain
+        LC.initSet(["OPENAI_API_KEY": openAIKey])
         
-        // Initialize HTTP client
+        // Setup networking
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         let httpClient = HTTPClient(eventLoopGroupProvider: .shared(eventLoopGroup))
         
         // Create tools
-        let tools: [Tool] = [
-            TimeCheckTool(),
-            CalculatorTool()
-        ]
+        let tools: [Tool] = [TimeCheckTool(), CalculatorTool()]
         
         do {
-            // Initialize the LLM
-            let llm = ChatOpenAI(httpClient: httpClient, temperature: 0.7)
-            
-            print("🤖 Processing your request: \(query)")
+            // Show available tools in verbose mode
             if verbose {
-                print("🛠️ Available tools: \(tools.map { $0.name() }.joined(separator: ", "))")
+                print("🛠️ Available tools:")
+                for tool in tools {
+                    print("- \(tool.name()): \(tool.description())")
+                }
+                print()
             }
             
-            // Initialize the agent
-            let agent = CustomAgent(llm: llm, tools: tools)
-            
-            // Run the agent
-            let result = try await agent.run(args: query)
-            print("\n✨ AI Assistant's Response:")
-            print(result)
+            // Process the query
+            print("🤖 Processing: \(query)\n")
+            let assistant = Assistant(llm: ChatOpenAI(httpClient: httpClient), tools: tools)
+            let result = try await assistant.process(query: query)
+            print("✨ Response:\n\(result)")
             
         } catch {
             print("❌ Error: \(error)")
             throw error
         }
         
-        // Clean up resources
+        // Cleanup
         try await httpClient.shutdown()
         try await eventLoopGroup.shutdownGracefully()
     }

@@ -97,12 +97,35 @@ struct AIAssistant: AsyncParsableCommand {
     )
     
     @Option(name: .long, help: "Your question (e.g., 'What time is it?' or 'Calculate 5 * 3')")
-    var query: String
+    var query: String?
     
     @Flag(name: .long, help: "Show available tools and detailed output")
     var verbose: Bool = false
     
+    mutating func validate() throws {
+        if query == nil && !verbose {
+            throw ValidationError("Either --query or --verbose must be provided")
+        }
+    }
+    
     mutating func run() async throws {
+        // Create tools
+        let tools: [Tool] = [TimeCheckTool(), CalculatorTool()]
+        
+        // If verbose mode is enabled, show available tools
+        if verbose {
+            print("🛠️ Available tools:")
+            for tool in tools {
+                print("- \(tool.name()): \(tool.description())")
+            }
+            print()
+            
+            // If no query is provided, we're done
+            if query == nil {
+                return
+            }
+        }
+        
         // Verify API key is set
         guard let openAIKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] else {
             print("❌ Please set your OPENAI_API_KEY environment variable")
@@ -116,24 +139,14 @@ struct AIAssistant: AsyncParsableCommand {
         let eventLoopGroup = MultiThreadedEventLoopGroup(numberOfThreads: 1)
         let httpClient = HTTPClient(eventLoopGroupProvider: .shared(eventLoopGroup))
         
-        // Create tools
-        let tools: [Tool] = [TimeCheckTool(), CalculatorTool()]
-        
         do {
-            // Show available tools in verbose mode
-            if verbose {
-                print("🛠️ Available tools:")
-                for tool in tools {
-                    print("- \(tool.name()): \(tool.description())")
-                }
-                print()
+            // Process the query if provided
+            if let query = query {
+                print("🤖 Processing: \(query)\n")
+                let assistant = Assistant(llm: ChatOpenAI(httpClient: httpClient), tools: tools)
+                let result = try await assistant.process(query: query)
+                print("✨ Response:\n\(result)")
             }
-            
-            // Process the query
-            print("🤖 Processing: \(query)\n")
-            let assistant = Assistant(llm: ChatOpenAI(httpClient: httpClient), tools: tools)
-            let result = try await assistant.process(query: query)
-            print("✨ Response:\n\(result)")
             
         } catch {
             print("❌ Error: \(error)")

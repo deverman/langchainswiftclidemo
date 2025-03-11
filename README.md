@@ -78,7 +78,7 @@ swift build
 .build/debug/langchainswiftclidemo --query "What time is it and calculate 15 * 24?"
 
 # See available tools
-.build/debug/langchainswiftclidemo --query "What time is it?" --verbose
+.build/debug/langchainswiftclidemo --verbose
 ```
 
 ## How It Works

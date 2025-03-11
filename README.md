@@ -33,47 +33,53 @@ export OPENAI_API_KEY='your-api-key-here'
 3. Build and run the project:
 ```bash
 swift build
-swift run
+.build/debug/langchainswiftclidemo --query "What time is it?"
 ```
 
 ## Usage
 
-The CLI supports various commands and options:
+The CLI supports the following options:
 
 ```bash
 # Basic usage
-swift run langchainswiftclidemo --query "What time is it?"
+.build/debug/langchainswiftclidemo --query "What time is it?"
 
-# Enable verbose output
-swift run langchainswiftclidemo --query "Calculate 15 * 24" --verbose
+# Enable verbose output (shows available tools)
+.build/debug/langchainswiftclidemo --query "Calculate 15 * 24" --verbose
 
-# Example queries
-swift run langchainswiftclidemo --query "What's the current time and calculate 42 + 7?"
-swift run langchainswiftclidemo --query "Tell me the time and multiply 13 by 5"
+# Combined tool usage example
+.build/debug/langchainswiftclidemo --query "What time is it and calculate 15 * 24?"
 ```
 
 ### Available Tools
 
-1. **Time Check Tool (`current_time`)**
-   - Gets the current date and time
+1. **Time Check Tool (`time_check`)**
+   - Gets the current time in HH:mm:ss format
    - Example: "What time is it?"
 
 2. **Calculator Tool (`calculator`)**
-   - Performs basic mathematical calculations
+   - Performs multiplication calculations
+   - Currently supports multiplication operations (e.g., "15 * 24")
    - Example: "Calculate 15 * 24"
 
 ## Project Structure
 
-- `Sources/main.swift`: Main application code implementing LangChain Swift with agents and tools
+- `Sources/main.swift`: Main application code implementing:
+  - Custom Tool protocol
+  - TimeCheckTool and CalculatorTool implementations
+  - CustomAgent for handling tool execution
+  - AsyncParsableCommand for CLI interface
 - `Package.swift`: Swift package manifest with dependencies
 - `.gitignore`: Git ignore file
-- `README.md`: This file
+- `README.md`: Project documentation
+- `LICENSE`: MIT license file
 
 ## Dependencies
 
 - [LangChain Swift](https://github.com/buhe/langchain-swift): Swift implementation of LangChain
 - [ArgumentParser](https://github.com/apple/swift-argument-parser): Command-line argument parsing
 - AsyncHTTPClient: Async HTTP client for Swift
+- NIO: SwiftNIO for async networking
 
 ## License
 
